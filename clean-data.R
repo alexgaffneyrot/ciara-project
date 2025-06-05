@@ -123,6 +123,9 @@ dt[, firs_stage := as.numeric(firs_stage)]
 dt[, motor := as.numeric(motor)]
 dt[, language := as.numeric(language)]
 dt[, cognitive := as.numeric(cognitive)]
+dt[, apgars_1 := as.numeric(apgars_1)]
+dt[, apgars_5 := as.numeric(apgars_5)]
+dt[, apgars_10 := as.numeric(apgars_10)]
 
 # Add FIRS exposure flag - those with FIRS grade OR stage >=1
 dt[, firs_exposed := fcase(
@@ -158,7 +161,7 @@ dt[, clinical_chorio := fcase(
 
 # table(dt$compNDIdeath)
 # table(dt$compsevNDIdeath)
-table(dt$firs_exposed)
+# table(dt$firs_exposed)
 # table(dt$clinical_chorio)
 # table(dt$firs_grade)
 # table(dt$firs_stage)
@@ -297,11 +300,16 @@ p_steroids <- chisq.test(table(dt$firs_exposed_f, dt$steroids_f))$p.value
 
 #####
 ## INFANT CHACTERISTICS
-# Recode Gender
-dt[, Gender_label := factor(`Gender 1=male 0=female`, levels = c(1, 0), labels = c("Male", "Female"))]
+# Gender
+table(dt$gender)
+dt[, gender_f := factor(gender, levels = c(0,1), labels = c("Female", "Male"))]
 
+# Gestation
+table(dt$gest_age)
 
-
+# APGARS
+# @ 1 min
+class(dt$apgars_1)
 
 ##################
 ## FORMAT TABLE ##
@@ -324,7 +332,7 @@ dt <- dt %>%
 
 # Build summary table
 summary_tbl <- dt %>%
-  select(firs_exposed_f, mat_age, clinical_chorio_f, rom_f, steroids_f) %>%
+  select(firs_exposed_f, mat_age, clinical_chorio_f, rom_f, steroids_f, gender_f) %>%
   tbl_summary(
     by = firs_exposed_f,
     type = list(
@@ -339,12 +347,14 @@ summary_tbl <- dt %>%
       mat_age ~ "Maternal age, yr (Median, IQR)",
       clinical_chorio_f ~ "Clinical Chorioamnionitis",
       rom_f ~ "ROM",
-      steroids_f ~ "Antenatal steroids"
+      steroids_f ~ "Antenatal steroids",
+      gender_f ~ "Sex"
     ),
     missing = "no"
   ) %>%
   add_p(test = list(
-    all_continuous() ~ "wilcox.test",
+    #all_continuous() ~ "wilcox.test",
+    all_continuous() ~ "t.test",
     all_categorical() ~ "chisq.test"
   )) %>%
   modify_spanning_header(c("stat_1", "stat_2") ~ "**Relationship between Fetal Inflammatory Response (FIR) and Maternal and Infant characteristics**") %>%
@@ -363,6 +373,52 @@ summary_tbl <- dt %>%
   ) %>%
   gt::tab_row_group(
     label = "**Infant Characteristics**",
-    rows = variable %in% c()
+    rows = variable %in% c("Sex")
   )
+summary_tbl
+
+
+
+summary_tbl <- dt %>%
+  select(firs_exposed_f, mat_age, clinical_chorio_f, rom_f, steroids_f, gest_age, birth_weight, gender_f, apgars_1, apgars_5, apgars_10) %>%
+  tbl_summary(
+    by = firs_exposed_f,
+    type = list(
+      all_continuous() ~ "continuous2",
+      all_categorical() ~ "categorical"
+    ),
+    statistic = list(
+      all_continuous() ~ "{median} ({p25}, {p75})",
+      all_categorical() ~ "{n} ({p}%)"
+    ),
+    label = list(
+      mat_age ~ "Maternal age, yr (Median, IQR)",
+      clinical_chorio_f ~ "Clinical Chorioamnionitis",
+      rom_f ~ "ROM",
+      steroids_f ~ "Antenatal steroids",
+      gest_age ~ "Gestation",
+      birth_weight ~ "Birth Weight",
+      gender_f ~ "Sex",
+      apgars_1 ~ "Apgars @ 1 min",
+      apgars_5 ~ "Apgars @ 5 mins",
+      apgars_10 ~ "Apgars @ 10 mins"
+    ),
+    missing = "no"
+  ) %>%
+  add_p(test = list(
+    all_continuous() ~ "wilcox.test",
+    #all_continuous() ~ "t.test",
+    all_categorical() ~ "chisq.test"
+  )) %>%
+  modify_spanning_header(all_stat_cols() ~ "**Relationship between Fetal Inflammatory Response (FIR) and Maternal and Infant characteristics**") %>%
+  modify_table_body(
+    ~ .x %>%
+      mutate(group = case_when(
+        variable %in% c("mat_age", "clinical_chorio_f", "rom_f", "steroids_f") ~ "Maternal Characteristics",
+        variable %in% c("gest_age","birth_weight","gender_f","apgars_1","apgars_5","apgars_10") ~ "Infant Characteristics",
+        TRUE ~ NA_character_
+      ))
+  ) %>%
+  bold_labels() %>%
+  as_gt()
 summary_tbl
