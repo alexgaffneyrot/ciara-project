@@ -7,22 +7,6 @@ library(lubridate)
 
 data <- read_excel("/Users/AGaffney/Documents/ciara-project/data/Copy of Complete CHorio with NDI ct.xlsx",)
 dt <- as.data.table(data)
-dt <- dt[!is.na(`Study no`)]
-
-table(dt$`Histiological chorio?`)
-
-# number histo chorio pos 
-histo_chorio_pos <- dt[`Histiological chorio?` == 1]
-nrow(histo_chorio_pos)
-n_histo_chorio_pos <- histo_chorio_pos[, uniqueN(`Study no`)]
-
-
-# number of participants
-n_participants <- dt[, uniqueN(`Study no`)]
-print(n_participants)
-
-dt[, sum(duplicated(`Study no`))]
-
 # rename variables
 #####
 custom_rename <- c(
@@ -83,61 +67,106 @@ custom_rename <- c(
   "Which PDA treatment (1=medical only, 2=surgical only, 3=medical, then surgical, N/A=no treatment)" = "pda_treatment_type",                                                    
   "Number of medical treatments PDA" = "num_med_treatments_pda",                                                                                                                      
   "Device closure?" = "device_closure",                                                                                                                                
-  "Length of stay"                                                                                                                                               
-  "Death? 1=yes, 0=No"                                                                                                                                           
-  "Death from Respiratory Failure or Chronic Lung Disease? Yes=1 No=0"                                                                                           
-  "Comments...61"                                                                                                                                                
-  "Bayley scores 1=Y, 0=n"                                                                                                                                       
-  "If no, reason"                                                                                                                                                
+  "Length of stay" = "length_stay",                                                                                                                                         
+  "Death? 1=yes, 0=No" = "death",                                                                                                                                       
+  "Death from Respiratory Failure or Chronic Lung Disease? Yes=1 No=0" = "death_resp_failure_chronic_lung",                                                                                      
+  "Comments...61" = "comments",                                                                                                                                        
+  "Bayley scores 1=Y, 0=n" = "bayley_score",                                                                                                           
+  "If no, reason" = "reason_no_bayleys",                                                                                                                                      
   "If no, referral to other services? 1=Y, 0=N" = "no_bayleys_ref",                                                                                                    
   "Age at Bayley (months, chronilogical)" = "age_at_bayleys",                                                                                                          
-  "Cognitive"                                                                                                                                                    
+  "Cognitive" = "cognitive",                                                                                                                                  
   "Motor" = "motor",                                                                                                                                                  
   "Language" = "language",                                                                                                                                       
-  "Social-emotional"                                                                                                                                             
-  "...70" = "remove"                                                                                                                                                   
-  "...71" =                                                                                                                                                
-  "...72"                                                                                                                                                        
-  "PVL 1=y, 0=n"                                                                                                                                                 
-  "PVHD"                                                                                                                                                         
-  "MRI performed 1=yes, 0=no"                                                                                                                                    
-  "Evidence of white matter injury on MRI 1=yes, 0=no"                                                                                                           
-  "Age at MRI"                                                                                                                                                   
-  "MRI comments"                                                                                                                                                 
-  "OFC at birth CENTILE"                                                                                                                                         
-  "OFC at MRI if done"                                                                                                                                           
-  "OFC at discharge CENTILE"                                                                                                                                     
-  "follow up timeline"                                                                                                                                           
-  "OFC at follow up"                                                                                                                                             
-  "AIMS centile"                                                                                                                                                 
-  "HINE score 3/12"                                                                                                                                              
-  "HINE score 6/12"                                                                                                                                              
-  "GMA writhing age 1=normal, 2=PR, 3=CS, 4=chaotic"                                                                                                             
-  "GMA Fidgety age 1=normal, 2=absent, 3=exaggerated"                                                                                                            
-  "Diagnosis 1=yes, 0=no"                                                                                                                                        
-  "CP 1=yes, 0=no"                                                                                                                                               
-  "NDI (CP or GDD without Bayley score) 1=yes, 0=no"                                                                                                             
-  "ASD 1=yes"                                                                                                                                                    
-  "Comments...93"                                                                                                                                                
-  "DNA 1=yes, 0=no"                                                                                                                                              
-  "Length of follow up (months)"                                                                                                                                 
-  "Referral to CDNT 1=yes, 0=no" 
+  "Social-emotional" = "social_emotional",                                                                                                                                        
+  "...70" = "remove",                                                                                                                                             
+  "...71" = "remove2",                                                                                                                                          
+  "...72" = "remove3",                                                                                                                                              
+  "PVL 1=y, 0=n" = "pvl",                                                                                                                                           
+  "PVHD" = "pvhd",                                                                                                                                          
+  "MRI performed 1=yes, 0=no" = "mri",                                                                                                                          
+  "Evidence of white matter injury on MRI 1=yes, 0=no" = "evidence_white_matte_injury",                                                                                           
+  "Age at MRI" = "age_mri",                                                                                                                                    
+  "MRI comments" = "mri_comment",                                                                                                                                    
+  "OFC at birth CENTILE" = "ofc_birth_centile",                                                                                                                                   
+  "OFC at MRI if done" = "ofc_mri",                                                                                                                          
+  "OFC at discharge CENTILE" = "ofc_discharge_centile",                                                                                                                                 
+  "follow up timeline" = "follow_up_timeline",                                                                                                                                        
+  "OFC at follow up" = "ofc_follow_up",                                                                                                                               
+  "AIMS centile" = "aims_centile",                                                                                                                                          
+  "HINE score 3/12" = "hine_3_12",                                                                                                                                   
+  "HINE score 6/12" = "hine_6_12",                                                                                                                                     
+  "GMA writhing age 1=normal, 2=PR, 3=CS, 4=chaotic" = "gma_writhing",                                                                                                 
+  "GMA Fidgety age 1=normal, 2=absent, 3=exaggerated" = "gma_fidgety" ,                                                                                                    
+  "Diagnosis 1=yes, 0=no" = "diagnosis",                                                                                                                                
+  "CP 1=yes, 0=no" = "cp",                                                                                                                                 
+  "NDI (CP or GDD without Bayley score) 1=yes, 0=no" = "ndi",                                                                                                    
+  "ASD 1=yes" = "asd",                                                                                                                                        
+  "Comments...93" = "comment2",                                                                                                                                 
+  "DNA 1=yes, 0=no" = "dna",                                                                                                                                        
+  "Length of follow up (months)" = "length_fu",                                                                                                                 
+  "Referral to CDNT 1=yes, 0=no" = "ref_cdnt"
 )
-
-#####
-
 setnames(dt, old = names(custom_rename), new = custom_rename)
+#####
+dt <- dt[!is.na(study_num)]
+
+# number of total participants
+n <- dt[, uniqueN(study_num)]
+print(n)
+
+#firs stage >=1 and firs stage >=1
+dt[, firs_grade := as.numeric(firs_grade)]
+dt[, firs_stage := as.numeric(firs_stage)]
+dt[, motor := as.numeric(motor)]
+dt[, language := as.numeric(language)]
+dt[, cognitive := as.numeric(cognitive)]
+
+# include only those with FIRS grade or Stage >= 1 
+participants <- dt[firs_grade >= 1 | firs_stage >= 1]
 
 
+# Composite NDI/death outcome: YES if motor, language, cognitive score <85 or CP/GDD/Death is recorded
+participants[, compNDIdeath := fcase(
+  death == 1, 1,
+  motor < 85, 1,
+  language < 85, 1,
+  cognitive < 85, 1,
+  default = 0
+)]
 
+# Composite severe NDI/death outcome: thresholds <70 and CP included
+participants[, compsevNDIdeath := fcase(
+  death == 1, 1,
+  cp == 1, 1,
+  motor < 70, 1,
+  language < 70, 1,
+  cognitive < 70, 1,
+  default = 0
+)]
+
+# FIRS exposed variable: if grade or stage >=1
+participants[ , firs_exposed := fcase(
+  firs_grade >= 1, 1,
+  firs_stage <= 1, 1,
+  default = 0
+)]
+
+table(participants$compNDIdeath)
+table(participants$compsevNDIdeath)
+table(participants$firs_grade)
+table(participants$firs_stage)
+
+
+participants$firs
 
 ### MATERNAL CHARACTERISTICS
 # Compute median and IQR components per group
-age_summary <- dt[, .(
-  Median = median(`Maternal Age`, na.rm = TRUE),
-  Q1 = quantile(`Maternal Age`, 0.25, na.rm = TRUE),
-  Q3 = quantile(`Maternal Age`, 0.75, na.rm = TRUE)
-),`Histiological chorio?`]
+age_summary <- participants[, .(
+  Median = median(mat_age, na.rm = TRUE),
+  Q1 = quantile(mat_age, 0.25, na.rm = TRUE),
+  Q3 = quantile(mat_age, 0.75, na.rm = TRUE)
+),compNDIdeath]
 
 # Format as scientific-style
 age_summary[, `Median [IQR]` := sprintf("%.2f [%.2f–%.2f]", Median, Q1, Q3)]
