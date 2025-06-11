@@ -4,11 +4,18 @@ library(dplyr)
 library(tidyverse)
 library(lubridate)
 library(moments)
+library(gtsummary)
+library(gt)
+library(naniar)
+library(naniar)
+library(car)
+library(ggplot2)
+library(VGAM)
+library(MCMCpack)
 
-#"C:\Users\AGaffney\Documents\ciara-project\data\Copy of Complete CHorio with NDI ct.xlsx"
-
-data <- read_excel("/Users/AGaffney/Documents/ciara-project/data/Copy of Complete CHorio with NDI ct.xlsx",)
+data <- read_excel("/Users/AGaffney/Documents/ciara-project/data/Copy of Complete CHorio with NDI ct.xlsx")
 dt <- as.data.table(data)
+
 # rename variables
 #####
 custom_rename <- c(
@@ -111,11 +118,17 @@ custom_rename <- c(
 )
 setnames(dt, old = names(custom_rename), new = custom_rename)
 #####
+# remove any NA study #'s and check for duplicate rows
 dt <- dt[!is.na(study_num)]
+any(duplicated(dt$study_num))
+
+# remove empty cols
+dt[, c("remove", "remove2", "remove3") := NULL]
+
 
 # Number of total participants
 n <- dt[, uniqueN(study_num)]
-print(n)
+n
 
 # Change character variables to numeric
 dt[, firs_grade := as.numeric(firs_grade)]
@@ -123,302 +136,132 @@ dt[, firs_stage := as.numeric(firs_stage)]
 dt[, motor := as.numeric(motor)]
 dt[, language := as.numeric(language)]
 dt[, cognitive := as.numeric(cognitive)]
+dt[, social_emotional := as.numeric(social_emotional)]
 dt[, apgars_1 := as.numeric(apgars_1)]
 dt[, apgars_5 := as.numeric(apgars_5)]
 dt[, apgars_10 := as.numeric(apgars_10)]
+dt[, length_fu := as.numeric(length_fu)]
+dt[, bayley_score := as.numeric(bayley_score)]
+
 
 # Add FIRS exposure flag - those with FIRS grade OR stage >=1
 dt[, firs_exposed := fcase(
   (!is.na(firs_grade) & firs_grade >= 1) | 
-    (!is.na(firs_stage) & firs_stage >= 1), 1,
-  default = 0
+    (!is.na(firs_stage) & firs_stage >= 1), "FIRS",
+  default = "No FIRS"
 )]
 
-# Composite NDI/death outcome: 1 if motor, language, cognitive score <85 or CP/GDD/Death is recorded
+# Add birth weight category 
+dt$birth_weight_cat <- cut(
+  dt$birth_weight,
+  #breaks = c(-Inf, 1499, 2499, Inf),
+  #labels = c("VLBW", "LBW", "NBW"),
+  # get rid of NBW - there's only one and messing up regression
+  breaks = c(-Inf, 1499, Inf),
+  labels = c("VLBW", "LBW"),
+  right = TRUE
+)
+
+dt$mat_age_cat <- cut(
+  dt$mat_age,
+  breaks = c(min(dt$mat_age), 34, max(dt$mat_age)),
+  labels = c("NMA","AMA"),
+  right = TRUE
+)
+
+# Rescale maternal age: effect per 5-year increase
+dt$mat_age_rescale5 <- dt$mat_age / 5
+
+# 190, 191, 188 - birth weight too low, remove?
+
+# Create composite outcome variables
 dt[, compNDIdeath := fcase(
-  death == 1, 1,
-  motor < 85, 1,
-  language < 85, 1,
-  cognitive < 85, 1,
-  default = 0
+  death == 1, "YES",
+  ndi == 1, "YES",
+  !is.na(motor) & motor < 85, "YES",
+  !is.na(language) & language < 85, "YES",
+  !is.na(cognitive) & cognitive < 85, "YES",
+  default = "NO"
 )]
 
-# Composite severe NDI/death outcome: 1 if thresholds <70 and CP included
 dt[, compsevNDIdeath := fcase(
-  death == 1, 1,
-  cp == 1, 1,
-  motor < 70, 1,
-  language < 70, 1,
-  cognitive < 70, 1,
-  default = 0
+  death == 1, "YES",
+  cp == 1, "YES",
+  !is.na(motor) & motor < 70, "YES",
+  !is.na(language) & language < 70, "YES",
+  !is.na(cognitive) & cognitive < 70, "YES",
+  default = "NO"
 )]
 
 # Clnical chorio: 1 if reason for preterm = 3 (Triple I (clinical chorio))
 dt[, clinical_chorio := fcase(
-  reason_for_preterm_birth == 3, 1,
-  default = 0
+  reason_for_preterm_birth == 3, "Yes",
+  default = 'No'
 )]
 
-# table(dt$compNDIdeath)
-# table(dt$compsevNDIdeath)
-# table(dt$firs_exposed)
-# table(dt$clinical_chorio)
-# table(dt$firs_grade)
-# table(dt$firs_stage)
+# HP Dep Score groups
 
-### MATERNAL CHARACTERISTICS
-#####
-## AGE
-# Compute median and IQR components per group - FIR expose or not
-range(dt$mat_age)
+dt$SESgroups <- cut(
+  dt$hp_dep_score,
+  breaks = c(-40, -10, 10, 40),
+  labels = c("Disadvantaged", "Average", "Affluent")
+)
 
-age_summary <- dt[, .(
-  Median = median(mat_age, na.rm = TRUE),
-  Q1 = quantile(mat_age, 0.25, na.rm = TRUE),
-  Q3 = quantile(mat_age, 0.75, na.rm = TRUE)
-),firs_exposed]
-
-# Format as scientific-style
-age_summary[, `Median [IQR]` := sprintf("%.2f (%.2f,%.2f)", Median, Q1, Q3)]
-age_summary
-
-# check if mat_age is normally distributed
-# Should look bell-shaped
-ggplot(dt, aes(x = mat_age)) +
-  geom_histogram(aes(y = ..density..), bins = 30, fill = "skyblue", color = "black") +
-  geom_density(color = "red", size = 1) +
-  theme_minimal() +
-  labs(title = "Distribution of Maternal Age")
-
-# Q-Q plot: Points should fall on the line
-qqnorm(dt$mat_age)
-qqline(dt$mat_age, col = "red")
-
-#Shapiro-Wilk test (for sample size < 5000):
-# p < 0.05 = not normal
-shapiro.test(dt$mat_age)
-shapiro.test(na.omit(dt$mat_age))
-
-# Skewness and Kurtosis
-#Skewness ≠ 0 and Kurtosis ≠ 3 suggest deviation from normality.
-skewness(na.omit(dt$mat_age))
-kurtosis(na.omit(dt$mat_age))
-
-#variable mat_age is approximately normally distributed
-# Null hypothesis: There is no difference in the mean maternal age between the FIRS exposed and non-exposed groups
-# Non-normal
-p_age <- wilcox.test(mat_age ~ firs_exposed, data = dt)$p.value
-# Normal
-t.test(mat_age ~ firs_exposed, data = dt)
-# Fail to reject the null hypothesis
-
-# CLINICAL CHORIO
-# Summary counts and proportions
-class(dt$clinical_chorio)
-table(factor(dt$clinical_chorio))
-clinical_chorio_table <- dt[, .(
-  Count = .N,
-  Chorio_Positive = sum(clinical_chorio == 1, na.rm = TRUE),
-  Percent_Positive = mean(clinical_chorio == 1, na.rm = TRUE) * 100
-), by = firs_exposed]
-clinical_chorio_table
-
-dt[, clinical_chorio_f := factor(clinical_chorio, levels = c(0,1), labels = c("No", "Yes"))]
-dt[, firs_exposed_f := factor(firs_exposed, levels = c(0,1), labels = c("Not Exposed", "Exposed"))]
-
-# Create contingency table
-clinical_chorio_tbl <- table(dt$firs_exposed_f, dt$clinical_chorio_f)
-print(clinical_chorio_table)
-
-# Counts <5 so use Chi-squared
-# Chi-square test
-# Null hypothesis: that there is no association between FIRS exposure and clinical chorioamnionitis
-chisq.test(clinical_chorio_tbl)
-
-# reject the null hypothesis 
-# there is a statistically significant association between FIRS exposure and clinical chorioamnionitis in this data
-
-##ROM
-class(dt$rom)
-table(factor(dt$rom))
-# should only be 0,1 - change 2 to NA
-dt[rom == 2, rom := NA]
-
-# Summary counts and proportions
-rom_table <- dt[, .(
-  Count = .N,
-  ROM_Positive = sum(rom == 1, na.rm = TRUE),
-  Percent_Positive = mean(rom == 1, na.rm = TRUE) * 100
-), by = firs_exposed]
-rom_table
-
-# Change to factor and add labels
-dt[, rom_f := factor(rom, levels = c(0,1), labels = c("No", "Yes"))]
-
-# Create contingency table
-rom_tbl <- table(dt$firs_exposed, dt$rom)
-print(rom_tbl)
-
-# Counts <5 so use Chi-squared
-# Chi-square test
-# Null hypothesis: that there is no association between FIRS exposure and ROM
-chisq.test(rom_tbl)
-# Reject the null hypothesis: there is strong evidence of an association between FIRS exposure and ROM in this dataset
-
-## STEROIDS
-class(dt$steroids)
-table(dt$steroids)
-# should only be 0,1,2 - NA rest
-dt[steroids %in% c("3", "NR"), steroids := NA_character_]
-
-# group 0+1 
-# Assign new column without warning
-dt[, steroids_f := fifelse(steroids %in% c("0", "1"), "No/Partial",
-                           fifelse(steroids == "2", "Full", NA_character_))]
-
-#dt[, steroids_f := factor(steroids_f, levels = c("No/Partial", "Full"))]
-
-# Check counts by firs_exposed and steroids_f
-steroids_table <- dt[, .(
-  Count = .N,
-  Steroids_Full = sum(steroids_f == "Full", na.rm = TRUE),
-  Percent_Full = mean(steroids_f == "Full", na.rm = TRUE) * 100
-), by = firs_exposed]
-
-steroids_table
-
-# Create contingency table
-steroids_tbl <- table(dt$firs_exposed_f, dt$steroids_f)
-steroids_tbl
-
-#Null hypothesis: no association between FIRS exposure and steroid dosing group
-chisq.test(steroids_tbl)
-p_steroids <- chisq.test(table(dt$firs_exposed_f, dt$steroids_f))$p.value
-
-# Reject null hypothesis at the 5% significance level - there is a  a statistically significant association between FIRS exposure and steroid dosing group (0+1 vs 2).
-
-
-#####
-## INFANT CHACTERISTICS
-# Gender
-table(dt$gender)
-dt[, gender_f := factor(gender, levels = c(0,1), labels = c("Female", "Male"))]
-
-# Gestation
-table(dt$gest_age)
-
-# APGARS
-# @ 1 min
-class(dt$apgars_1)
-
-##################
-## FORMAT TABLE ##
-##################
-
-library(gtsummary)
-library(dplyr)
-library(gt)
-
-# Group 0 and 1 as "0+1", keep 2, and convert to factor on the fly
+# Steroids
 dt <- dt %>%
   mutate(
-    firs_exposed = factor(firs_exposed, levels = c(0, 1), labels = c("No FIR", "FIR")),
     steroids = case_when(
-      steroids %in% c(0, 1) ~ "0+1",
-      steroids == 2 ~ "2",
+      steroids %in% c(0, 1) ~ "Partial",
+      steroids == 2 ~ "Full",
       TRUE ~ NA_character_
-    ) %>% factor(levels = c("0+1", "2"))
+    )
   )
 
-# Build summary table
-summary_tbl <- dt %>%
-  select(firs_exposed_f, mat_age, clinical_chorio_f, rom_f, steroids_f, gender_f) %>%
-  tbl_summary(
-    by = firs_exposed_f,
-    type = list(
-      all_continuous() ~ "continuous2",
-      all_categorical() ~ "categorical"
-    ),
-    statistic = list(
-      all_continuous() ~ "{median} ({p25}, {p75})",
-      all_categorical() ~ "{n} ({p}%)"
-    ),
-    label = list(
-      mat_age ~ "Maternal age, yr (Median, IQR)",
-      clinical_chorio_f ~ "Clinical Chorioamnionitis",
-      rom_f ~ "ROM",
-      steroids_f ~ "Antenatal steroids",
-      gender_f ~ "Sex"
-    ),
-    missing = "no"
-  ) %>%
-  add_p(test = list(
-    #all_continuous() ~ "wilcox.test",
-    all_continuous() ~ "t.test",
-    all_categorical() ~ "chisq.test"
-  )) %>%
-  modify_spanning_header(c("stat_1", "stat_2") ~ "**Relationship between Fetal Inflammatory Response (FIR) and Maternal and Infant characteristics**") %>%
-  modify_table_body(
-    ~ .x %>%
-      mutate(group = case_when(
-        variable %in% c("mat_age_f", "clinical_chorio_f", "rom_f", "steroids_f") ~ "**Maternal Characteristics**",
-        TRUE ~ "**Infant Characteristics**"
-      ))
-  ) %>%
-  bold_labels() %>%
-  as_gt() %>%
-  gt::tab_row_group(
-    label = "**Maternal Characteristics**",
-    rows = variable %in% c("Maternal age, yr (Median, IQR)", "Clinical Chorioamnionitis", "ROM", "Antenatal steroids")
-  ) %>%
-  gt::tab_row_group(
-    label = "**Infant Characteristics**",
-    rows = variable %in% c("Sex")
-  )
-summary_tbl
+#rescale birth weight, e.g., per 100 grams:
+dt$birth_weight_100g <- dt$birth_weight / 100
 
 
+# check for missing data
+vis_miss(dt)
 
-summary_tbl <- dt %>%
-  select(firs_exposed_f, mat_age, clinical_chorio_f, rom_f, steroids_f, gest_age, birth_weight, gender_f, apgars_1, apgars_5, apgars_10) %>%
-  tbl_summary(
-    by = firs_exposed_f,
-    type = list(
-      all_continuous() ~ "continuous2",
-      all_categorical() ~ "categorical"
-    ),
-    statistic = list(
-      all_continuous() ~ "{median} ({p25}, {p75})",
-      all_categorical() ~ "{n} ({p}%)"
-    ),
-    label = list(
-      mat_age ~ "Maternal age, yr (Median, IQR)",
-      clinical_chorio_f ~ "Clinical Chorioamnionitis",
-      rom_f ~ "ROM",
-      steroids_f ~ "Antenatal steroids",
-      gest_age ~ "Gestation",
-      birth_weight ~ "Birth Weight",
-      gender_f ~ "Sex",
-      apgars_1 ~ "Apgars @ 1 min",
-      apgars_5 ~ "Apgars @ 5 mins",
-      apgars_10 ~ "Apgars @ 10 mins"
-    ),
-    missing = "no"
-  ) %>%
-  add_p(test = list(
-    all_continuous() ~ "wilcox.test",
-    #all_continuous() ~ "t.test",
-    all_categorical() ~ "chisq.test"
-  )) %>%
-  modify_spanning_header(all_stat_cols() ~ "**Relationship between Fetal Inflammatory Response (FIR) and Maternal and Infant characteristics**") %>%
-  modify_table_body(
-    ~ .x %>%
-      mutate(group = case_when(
-        variable %in% c("mat_age", "clinical_chorio_f", "rom_f", "steroids_f") ~ "Maternal Characteristics",
-        variable %in% c("gest_age","birth_weight","gender_f","apgars_1","apgars_5","apgars_10") ~ "Infant Characteristics",
-        TRUE ~ NA_character_
-      ))
-  ) %>%
-  bold_labels() %>%
-  as_gt()
-summary_tbl
+# change variables to factors
+dt[, compNDIdeath := factor(compNDIdeath)]
+dt[, compsevNDIdeath := factor(compsevNDIdeath)]
+dt[, firs_exposed := as.factor(firs_exposed)]
+dt[, birth_weight_cat := as.factor(birth_weight_cat)]
+dt[, gender := factor(gender,
+                      levels = c(0, 1),
+                      labels = c("Male", "Female"))]
+dt[, conception := factor(
+  conception,
+  levels = c(1, 2, 3, 4),
+  labels = c("Spontaneous", "IVF/ICSI", "Donor Egg IVF", "IUI")
+)]
+
+dt[, rom := factor(rom, levels = c(0, 1), labels = c("No", "Yes"))]
+dt[, mat_age_cat := as.factor(mat_age_cat)]
+dt[, grade_ivh := as.factor(grade_ivh)]
+dt[, pvl := as.factor(pvl)]
+dt[, gender := as.factor(gender)]
+dt[, steroids := as.factor(steroids)]
+dt[, firs_grade := as.factor(firs_grade)]
+dt[, firs_stage := as.factor(firs_stage)]
+
+summary(dt)
+table(dt$firs_grade)
+
+str(dt[, c("compNDIdeath", "compsevNDIdeath", "firs_exposed", "birth_weight_cat", "gest_age")])
+
+# Temporarily use a linear model to check collinearity
+lm_check <- lm(birth_weight ~ firs_exposed + gest_age, data = dt)
+vif(lm_check)
+
+#Explore correlations visually
+ggplot(dt, aes(x = gest_age, y = birth_weight, color = firs_exposed)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  theme_minimal()
+
+#Check distribution of continuous predictors
+hist(dt$birth_weight, main = "Birth Weight Distribution")
+
