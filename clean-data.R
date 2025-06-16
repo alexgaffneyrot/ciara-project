@@ -142,6 +142,14 @@ dt[, apgars_5 := as.numeric(apgars_5)]
 dt[, apgars_10 := as.numeric(apgars_10)]
 dt[, length_fu := as.numeric(length_fu)]
 dt[, bayley_score := as.numeric(bayley_score)]
+dt[, asd := as.numeric(asd)]
+
+
+# birth weight wrong in three - update
+# Update values based on study_number
+dt[study_num == 190, birth_weight := 1230]
+dt[study_num == 191, birth_weight := 1350]
+dt[study_num == 188, birth_weight := 1440]
 
 
 # Add FIRS exposure flag - those with FIRS grade OR stage >=1
@@ -172,7 +180,6 @@ dt$mat_age_cat <- cut(
 # Rescale maternal age: effect per 5-year increase
 dt$mat_age_rescale5 <- dt$mat_age / 5
 
-# 190, 191, 188 - birth weight too low, remove?
 
 # Create composite outcome variables
 dt[, compNDIdeath := fcase(
@@ -184,6 +191,29 @@ dt[, compNDIdeath := fcase(
   default = "NO"
 )]
 
+dt[, compNDIdeath_Motor := fcase(
+  death == 1, "YES",
+  ndi == 1, "YES",
+  !is.na(motor) & motor < 85, "YES",
+  default = "NO"
+)]
+
+dt[, compNDIdeath_Language := fcase(
+  death == 1, "YES",
+  ndi == 1, "YES",
+  !is.na(language) & language < 85, "YES",
+  default = "NO"
+)]
+
+# Create composite outcome variables
+dt[, compNDIdeath_Cognitive := fcase(
+  death == 1, "YES",
+  ndi == 1, "YES",
+  !is.na(cognitive) & cognitive < 85, "YES",
+  default = "NO"
+)]
+
+# Sev
 dt[, compsevNDIdeath := fcase(
   death == 1, "YES",
   cp == 1, "YES",
@@ -192,6 +222,28 @@ dt[, compsevNDIdeath := fcase(
   !is.na(cognitive) & cognitive < 70, "YES",
   default = "NO"
 )]
+
+dt[, compsevNDIdeath_Motor := fcase(
+  death == 1, "YES",
+  cp == 1, "YES",
+  !is.na(motor) & motor < 70, "YES",
+  default = "NO"
+)]
+
+dt[, compsevNDIdeath_Language := fcase(
+  death == 1, "YES",
+  cp == 1, "YES",
+  !is.na(language) & language < 70, "YES",
+  default = "NO"
+)]
+
+dt[, compsevNDIdeath_Cognitive := fcase(
+  death == 1, "YES",
+  cp == 1, "YES",
+  !is.na(cognitive) & cognitive < 70, "YES",
+  default = "NO"
+)]
+
 
 # Clnical chorio: 1 if reason for preterm = 3 (Triple I (clinical chorio))
 dt[, clinical_chorio := fcase(
@@ -226,9 +278,17 @@ vis_miss(dt)
 
 # change variables to factors
 dt[, compNDIdeath := factor(compNDIdeath)]
+dt[, compNDIdeath_Motor := factor(compNDIdeath_Motor)]
+dt[, compNDIdeath_Cognitive := factor(compNDIdeath_Cognitive)]
+dt[, compNDIdeath_Language := factor(compNDIdeath_Language)]
+
 dt[, compsevNDIdeath := factor(compsevNDIdeath)]
-dt[, firs_exposed := as.factor(firs_exposed)]
-dt[, birth_weight_cat := as.factor(birth_weight_cat)]
+dt[, compsevNDIdeath_Motor := factor(compsevNDIdeath_Motor)]
+dt[, compsevNDIdeath_Cognitive := factor(compsevNDIdeath_Cognitive)]
+dt[, compsevNDIdeath_Language := factor(compsevNDIdeath_Language)]
+
+dt[, firs_exposed := factor(firs_exposed)]
+dt[, birth_weight_cat := factor(birth_weight_cat)]
 dt[, gender := factor(gender,
                       levels = c(0, 1),
                       labels = c("Male", "Female"))]
@@ -239,29 +299,41 @@ dt[, conception := factor(
 )]
 
 dt[, rom := factor(rom, levels = c(0, 1), labels = c("No", "Yes"))]
-dt[, mat_age_cat := as.factor(mat_age_cat)]
-dt[, grade_ivh := as.factor(grade_ivh)]
-dt[, pvl := as.factor(pvl)]
-dt[, gender := as.factor(gender)]
-dt[, steroids := as.factor(steroids)]
-dt[, firs_grade := as.factor(firs_grade)]
-dt[, firs_stage := as.factor(firs_stage)]
+dt[, mat_age_cat := factor(mat_age_cat)]
+dt[, grade_ivh := factor(grade_ivh)]
+dt[, pvl := factor(pvl)]
+dt[, gender := factor(gender)]
+dt[, steroids := factor(steroids)]
+dt[, firs_grade := factor(firs_grade)]
+dt[, firs_stage := factor(firs_stage)]
+dt[, clinical_chorio := factor(clinical_chorio)]
+dt[, SESgroups := factor(SESgroups)]
+dt[, asd := factor(asd, levels = c(0,1), labels = c("No", "Yes"))]
 
-summary(dt)
-table(dt$firs_grade)
+# Bayleys
+###################
 
-str(dt[, c("compNDIdeath", "compsevNDIdeath", "firs_exposed", "birth_weight_cat", "gest_age")])
+dt_no_bayleys <- dt[bayley_score == 0,]
 
-# Temporarily use a linear model to check collinearity
-lm_check <- lm(birth_weight ~ firs_exposed + gest_age, data = dt)
-vif(lm_check)
+# dt <- dt %>%
+#   mutate(bayley_score_flag = ifelse(is.na(motor), "No", "Yes"))
+# 
+# View(table(dt$bayley_score_flag, dt$no_bayleys_ref))
 
-#Explore correlations visually
-ggplot(dt, aes(x = gest_age, y = birth_weight, color = firs_exposed)) +
-  geom_point() +
-  geom_smooth(method = "lm") +
-  theme_minimal()
 
-#Check distribution of continuous predictors
-hist(dt$birth_weight, main = "Birth Weight Distribution")
+# Recategorize into broader, cleaner labels
+dt_no_bayleys[, no_bayleys_cat := fcase(
+  no_bayleys_ref %in% c("0"),"No",
+  no_bayleys_ref %in% c("1"),"Yes",
+  no_bayleys_ref %in% c("2"),"Yes",
+  grepl("dna", no_bayleys_ref, ignore.case = TRUE), "DNA",
+  grepl("lost", no_bayleys_ref, ignore.case = TRUE), "Lost to Follow-Up",
+  grepl("discharge", no_bayleys_ref, ignore.case = TRUE), "No",
+  grepl("referred", no_bayleys_ref, ignore.case = TRUE), "Yes",
+  is.na(no_bayleys_ref) | no_bayleys_ref %in% c("NA", "na", ""), "NA",
+  default = "Other"
+)]
+
+#dim(dt_no_bayleys)
+#table(dt_no_bayleys$no_bayleys_cat)
 

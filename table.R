@@ -1,3 +1,5 @@
+library(rmarkdown)
+library("markdown")
 
 ### MATERNAL CHARACTERISTICS
 #####
@@ -68,6 +70,19 @@ shapiro.test(na.omit(dt$birth_weight))
 skewness(na.omit(dt$birth_weight))
 kurtosis(na.omit(dt$birth_weight))
 
+# Summary using mean and standard deviation
+bw_summary <- dt[, .(
+  Mean = mean(birth_weight, na.rm = TRUE),
+  SD = sd(birth_weight, na.rm = TRUE)
+), by = firs_exposed]
+
+# Format as "Mean (SD)"
+bw_summary[, `Mean (SD)` := sprintf("%.2f (%.2f)", Mean, SD)]
+bw_summary
+
+# Non-normal
+p_bwe <- wilcox.test(birth_weight ~ firs_exposed, data = dt)$p.value
+
 #variable mat_age is approximately normally distributed
 # Null hypothesis: There is no difference in the mean maternal age between the FIRS exposed and non-exposed groups
 # Non-normal
@@ -75,8 +90,6 @@ p_age <- wilcox.test(mat_age ~ firs_exposed, data = dt)$p.value
 # Normal
 t.test(mat_age ~ firs_exposed, data = dt)
 # Fail to reject the null hypothesis
-
-
 
 # CLINICAL CHORIO
 # Summary counts and proportions
@@ -88,9 +101,6 @@ clinical_chorio_table <- dt[, .(
   Percent_Positive = mean(clinical_chorio == 1, na.rm = TRUE) * 100
 ), by = firs_exposed]
 clinical_chorio_table
-
-dt[, clinical_chorio_f := factor(clinical_chorio, levels = c(0,1), labels = c("No", "Yes"))]
-dt[, firs_exposed_f := factor(firs_exposed, levels = c(0,1), labels = c("Not Exposed", "Exposed"))]
 
 # Create contingency table
 clinical_chorio_tbl <- table(dt$firs_exposed_f, dt$clinical_chorio_f)
@@ -192,34 +202,37 @@ dt <- dt %>%
     ) %>% factor(levels = c("0+1", "2"))
   )
 
+
+#dt[, firs_exposed_f := factor(firs_exposed, levels = c("No FIRS","FIRS"), labels = c("Not Exposed", "Exposed"))]
+class(dt$firs_exposed)
 # Create your summary table
 summary_tbl <- dt %>%
   select(
-    firs_exposed_f, mat_age, clinical_chorio_f, rom_f, steroids_f,
-    gest_age, birth_weight, gender_f, apgars_1, apgars_5, apgars_10
+    firs_exposed, mat_age, clinical_chorio, rom, steroids,
+    gest_age, birth_weight, gender, apgars_1, apgars_5, apgars_10
   ) %>%
   tbl_summary(
-    by = firs_exposed_f,
+    by = firs_exposed,
     type = list(
       all_continuous() ~ "continuous2",
       all_categorical() ~ "categorical",
-      steroids_f ~ "categorical"
+      steroids ~ "categorical"
     ),
     statistic = list(
       all_continuous() ~ "{median} ({p25}, {p75})",
       all_categorical() ~ "{n} ({p}%)"
     ),
     label = list(
-      mat_age ~ "  Maternal age, yr (Median, IQR)",
-      clinical_chorio_f ~ "  Clinical Chorioamnionitis",
-      rom_f ~ "  ROM",
-      steroids_f ~ "  Antenatal steroids",
-      gest_age ~ "  Gestation",
-      birth_weight ~ "  Birth Weight",
-      gender_f ~ "  Sex",
-      apgars_1 ~ "  1 min",
-      apgars_5 ~ "  5 min",
-      apgars_10 ~ "  10 min"
+      mat_age ~ "Maternal age, yr (Median, IQR)",
+      clinical_chorio ~ "Clinical Chorioamnionitis",
+      rom ~ "ROM",
+      steroids ~ "Antenatal steroids",
+      gest_age ~ "Gestation",
+      birth_weight ~ "Birth Weight",
+      gender ~ "Sex",
+      apgars_1 ~ "1 min",
+      apgars_5 ~ "5 min",
+      apgars_10 ~ "10 min"
     ),
     missing = "no"
   ) %>%
@@ -239,13 +252,13 @@ summary_tbl <- dt %>%
         label = "  Maternal Characteristics",
         row_type = "label"
       ),
-      .x %>% filter(variable %in% c("mat_age", "clinical_chorio_f", "rom_f", "steroids_f")),
+      .x %>% filter(variable %in% c("mat_age", "clinical_chorio", "rom", "steroids")),
       tibble(
         variable = "infant_header",
         label = "  Infant Characteristics",
         row_type = "label"
       ),
-      .x %>% filter(variable %in% c("gest_age", "birth_weight", "gender_f")),
+      .x %>% filter(variable %in% c("gest_age", "birth_weight", "gender")),
       tibble(
         variable = "apgar_header",
         label = "  Apgar scores",

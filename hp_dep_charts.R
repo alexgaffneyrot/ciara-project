@@ -85,6 +85,8 @@ bayleys_motor_sesgroup_boxplot <-
        y = "Bayleys Motor Score") +
   theme_minimal()
 
+bayleys_motor_sesgroup_boxplot
+
 ggplotly(bayley_score_sesgroup_boxplot)
 
 # Bayleys - cognitive
@@ -98,6 +100,8 @@ bayleys_cognitive_sesgroup_boxplot <-
        x = "SES Group",
        y = "Bayleys Cognitive Score") +
   theme_minimal()
+
+bayleys_cognitive_sesgroup_boxplot
 
 ggplotly(bayleys_cognitive_sesgroup_boxplot)
 
@@ -113,6 +117,8 @@ bayleys_language_sesgroup_boxplot <-
        y = "Bayleys Language Score") +
   theme_minimal()
 
+bayleys_language_sesgroup_boxplot
+
 ggplotly(bayleys_language_sesgroup_boxplot)
 
 # Bayleys - socio_emotional
@@ -126,5 +132,7 @@ bayleys_socio_emotional_sesgroup_boxplot <-
        x = "SES Group",
        y = "Bayleys Socio-Emotional Score") +
   theme_minimal()
+
+bayleys_socio_emotional_sesgroup_boxplot
 
 ggplotly(bayleys_socio_emotional_sesgroup_boxplot)
