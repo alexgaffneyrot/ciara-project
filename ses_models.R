@@ -31,3 +31,40 @@ tidy_ses_mod
 #and FIRS exposure, an ASD diagnosis is associated with a notably lower l
 #ikelihood of being in higher SES groups.
 #Other variables don’t appear to significantly differentiate SES groups in this model.
+
+
+# logistic regression
+# compNDIdeath
+compNDIdeath_mod_ses <-
+  glm(
+    compNDIdeath ~ SESgroups + firs_exposed + gest_age + motor + language + cognitive,
+    data = dt,
+    family = "binomial"
+  )
+
+
+# table(dt$compNDIdeath, dt$SESgroups)
+# table(dt$compNDIdeath, dt$firs_exposed)
+# table(dt$compNDIdeath, dt$asd)
+
+# check for multicollinearity
+vif(compNDIdeath_mod_ses)
+
+# tidy results
+compNDIdeath_mod_ses_tidymod <- tidy(compNDIdeath_mod_ses
+                                     ,
+                                     exponentiate = TRUE,
+                                     conf.int = TRUE)
+
+compNDIdeath_mod_ses_tidymod
+
+
+# quasi complete seperation os ASD - use firth model
+
+library(logistf)
+firth_model <- logistf(
+  compNDIdeath ~ SESgroups + firs_exposed + gest_age + birth_weight + motor + language + cognitive + asd,
+  data = dt
+)
+summary(firth_model)
+
