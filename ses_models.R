@@ -1,7 +1,8 @@
 library(MASS)
 library(broom)
+library(logistf)
 # ordinal logistic regression
-ses_mod <- polr(SESgroups ~ firs_exposed + gest_age + motor + language + cognitive + asd,
+ses_mod <- polr(SESgroups ~  gest_age + motor + language + cognitive + asd,
                 data = dt,
                 Hess = TRUE)
 summary(ses_mod)
@@ -37,7 +38,7 @@ tidy_ses_mod
 # compNDIdeath
 compNDIdeath_mod_ses <-
   glm(
-    compNDIdeath ~ SESgroups + firs_exposed + gest_age + motor + language + cognitive,
+    compNDIdeath ~ SESgroups + gest_age + birth_weight + asd,#+ motor + language + cognitive,
     data = dt,
     family = "binomial"
   )
@@ -60,11 +61,15 @@ compNDIdeath_mod_ses_tidymod
 
 
 # quasi complete seperation os ASD - use firth model
-
-library(logistf)
 firth_model <- logistf(
-  compNDIdeath ~ SESgroups + firs_exposed + gest_age + birth_weight + motor + language + cognitive + asd,
+  compNDIdeath ~ SESgroups + gest_age + birth_weight + asd,,
   data = dt
 )
 summary(firth_model)
 
+
+###################################
+
+# asd referral as outcome -  ses group
+
+asd_ses_mod <- 
