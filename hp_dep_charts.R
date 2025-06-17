@@ -108,7 +108,13 @@ summary_table <- dt[, .(
 
 summary_table
 
-#There is a significant difference between Disadvantaged and Affluent groups (p = 0.0061 < 0.0167).
+#There is a significant difference between Disadvantaged and Affluent groups (p = 0.0061).
+# borderline disadvantaged and average 0.0631
+
+# max y for positioning lines a bit above boxplots
+max_mot <- max(dt$motor, na.rm = TRUE)
+line_y1 <- max_lang + 1      # significant line height
+line_y2 <- max_lang + 8   # second line height
 
 ggplot(dt, aes(x = SESgroups, y = motor, fill = SESgroups)) +
   geom_boxplot() +
@@ -118,13 +124,25 @@ ggplot(dt, aes(x = SESgroups, y = motor, fill = SESgroups)) +
   labs(title = "Motor Scores by SES Group",
        x = "SES Group",
        y = "Motor Score") +
+  
+  # Significant comparison (red)
   geom_signif(
-    comparisons = list(c("Disadvantaged", "Affluent")),   # pairs to compare
-    annotations = "p = 0.0061",                            # label text
-    y_position = max(dt$motor, na.rm = TRUE) + 7,         # position above boxplots
+    comparisons = list(c("Disadvantaged", "Affluent")),
+    annotations = "p = 0.0061",
+    y_position = line_y1,
     tip_length = 0.02,
     textsize = 5,
     color = "red"
+  ) +
+  
+  # Borderline comparison (gray)
+  geom_signif(
+    comparisons = list(c("Disadvantaged", "Average")),
+    annotations = "p = 0.0631",
+    y_position = line_y2,
+    tip_length = 0.02,
+    textsize = 5,
+    color = "gray50"
   )
 
 
@@ -156,7 +174,8 @@ dunn.test::dunn.test(dt$cognitive, dt$SESgroups, method = "bonferroni")
 
 # max y for positioning lines a bit above boxplots
 max_cog <- max(dt$cognitive, na.rm = TRUE)
-line_height <- max_cog + 7
+line_y1 <- max_lang + 7      # significant line height
+line_y2 <- max_lang + 15   # second line height
 
 ggplot(dt, aes(x = SESgroups, y = cognitive, fill = SESgroups)) +
   geom_boxplot() +
@@ -166,11 +185,22 @@ ggplot(dt, aes(x = SESgroups, y = cognitive, fill = SESgroups)) +
   labs(title = "Cognitive Scores by SES Group",
        x = "SES Group",
        y = "Cognitive Score") +
+  
+  # Significant comparison (red)
   geom_signif(
-    comparisons = list(c("Disadvantaged", "Affluent"),
-                       c("Disadvantaged", "Average")),
-    annotations = c("p = 0.0094", "p = 0.0382"),
-    y_position = c(line_height, line_height + 5),
+    comparisons = list(c("Disadvantaged", "Affluent")),
+    annotations = "p = 0.0094",
+    y_position = line_y1,
+    tip_length = 0.02,
+    textsize = 5,
+    color = "red"
+  ) +
+  
+  # Significant comparison 2 (red)
+  geom_signif(
+    comparisons = list(c("Disadvantaged", "Average")),
+    annotations = "p = 0.0382",
+    y_position = line_y2,
     tip_length = 0.02,
     textsize = 5,
     color = "red"
