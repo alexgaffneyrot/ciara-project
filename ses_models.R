@@ -1,6 +1,10 @@
 library(MASS)
 library(broom)
 library(logistf)
+library(lmtest)
+library(sandwich)
+
+
 # ordinal logistic regression
 ses_mod <- polr(SESgroups ~  gest_age + motor + language + cognitive + asd,
                 data = dt,
@@ -52,8 +56,7 @@ compNDIdeath_mod_ses <-
 vif(compNDIdeath_mod_ses)
 
 # tidy results
-compNDIdeath_mod_ses_tidymod <- tidy(compNDIdeath_mod_ses
-                                     ,
+compNDIdeath_mod_ses_tidymod <- tidy(compNDIdeath_mod_ses,
                                      exponentiate = TRUE,
                                      conf.int = TRUE)
 
@@ -68,8 +71,56 @@ firth_model <- logistf(
 summary(firth_model)
 
 
-###################################
+################################################################################
 
-# asd referral as outcome -  ses group
+# asd referral as outcome -  ses group + asd 
 
-asd_ses_mod <- 
+asd_ses_mod <-   glm(
+  asd ~ SESgroups + gest_age + birth_weight,
+  data = dt,
+  family = "binomial"
+)
+
+asd_ses_tidymod <- tidy(asd_ses_mod,
+                        exponentiate = TRUE,
+                        conf.int = TRUE)
+asd_ses_tidymod
+
+#Affluent SES is significantly associated with reduced odds of ASD referral (OR = 0.0952, p = 0.006).
+#Average SES also trends toward lower odds, but is marginally non-significant (p ≈ 0.085).
+
+
+################################################################################
+
+# bayleys as outcome
+
+levels(dt$SESgroups)
+
+# continuous but not normally distributed, which can violate the assumptions of ordinary least squares (OLS) regression - use Huber/White Sandwich SEs
+# Linear Regression
+
+# Motor
+motor_lin_mod <- lm(motor ~ SESgroups + birth_weight + gest_age, data = dt)
+coeftest(motor_lin_mod, vcov = vcovHC(motor_lin_mod, type = "HC1"))
+#Average SES is associated with a ~5.4 point higher motor score.
+#Affluent SES is associated with a ~8.1 point higher motor score.
+
+# Cognitive
+cog_lin_mod <- lm(cognitive ~ SESgroups + birth_weight + gest_age, data = dt)
+coeftest(cog_lin_mod, vcov = vcovHC(cog_lin_mod, type = "HC1"))
+#Average SES is associated with a ~6.9 point higher cognitive score.
+#Affluent SES is associated with a ~10.2 point higher cognitive score.
+
+# Language
+lang_lin_mod <- lm(language ~ SESgroups + birth_weight + gest_age, data = dt)
+coeftest(lang_lin_mod, vcov = vcovHC(lang_lin_mod, type = "HC1"))
+#Average SES is associated with a ~9.8 point higher language score.
+#Affluent SES is associated with a ~9.9 point higher language score.
+#Higher birth weight is significantly associated with better language scores
+
+# Social emotional
+soc_em_lin_mod <- lm(social_emotional ~ SESgroups + birth_weight + gest_age, data = dt)
+coeftest(soc_em_lin_mod, vcov = vcovHC(soc_em_lin_mod, type = "HC1"))
+#Average SES is associated with a ~6.76 point higher social emotional score - not sig 
+#Affluent SES is associated with a ~14.23 point higher social emotional score.
+

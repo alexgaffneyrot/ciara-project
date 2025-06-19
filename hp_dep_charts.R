@@ -164,13 +164,22 @@ kurtosis(dt$cognitive, na.rm = TRUE)
 # data is not normal and more than 2 groups - use kruskal-wallis
 kruskal.test(cognitive ~ SESgroups, data = dt)
 
-# reject null hypothesis that the median motor scores are the same accross all the SES groups 
+# reject null hypothesis that the median cognitive scores are the same accross all the SES groups 
 
 dunn.test::dunn.test(dt$cognitive, dt$SESgroups, method = "bonferroni")
 
 # infants in the Disadvantaged group had significantly lower cognitive scores than those in the:
 # Affluent group (p = 0.0094)
 # Average group (p = 0.0382)
+
+# Summary by group
+summary_table <- dt[, .(
+  count = .N,
+  mean_motor = mean(cognitive, na.rm = TRUE),
+  median_motor = median(cognitive, na.rm = TRUE)
+), by = SESgroups]
+
+summary_table
 
 # max y for positioning lines a bit above boxplots
 max_cog <- max(dt$cognitive, na.rm = TRUE)
@@ -232,6 +241,15 @@ dunn.test::dunn.test(dt$language, dt$SESgroups, method = "bonferroni")
 # dis - average : sig difference 0.0263
 # dis - affluent : borderline 0.0639
 
+# Summary by group
+summary_table <- dt[, .(
+  count = .N,
+  mean_motor = mean(language, na.rm = TRUE),
+  median_motor = median(language, na.rm = TRUE)
+), by = SESgroups]
+
+summary_table
+
 max_lang <- max(dt$language, na.rm = TRUE)
 line_y1 <- max_lang + 7      # significant line height
 line_y2 <- max_lang + 15   # borderline line height
@@ -290,6 +308,16 @@ kruskal.test(social_emotional ~ SESgroups, data = dt)
 
 # see where the diff is - dunn's test
 dunn.test::dunn.test(dt$social_emotional, dt$SESgroups, method = "bonferroni")
+
+
+# Summary by group
+summary_table <- dt[, .(
+  count = .N,
+  mean_motor = mean(social_emotional, na.rm = TRUE),
+  median_motor = median(social_emotional, na.rm = TRUE)
+), by = SESgroups]
+
+summary_table
 
 
 max_lang <- max(dt$social_emotional, na.rm = TRUE)
