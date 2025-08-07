@@ -12,16 +12,14 @@ library(car)
 library(ggplot2)
 library(VGAM)
 library(MCMCpack)
-
-data <- read_excel("/Users/AGaffney/Documents/ciara-project/data/Copy of Complete CHorio with NDI ct.xlsx")
-dt <- as.data.table(data)
+library("ResourceSelection")
+library("pROC")
+library("ggeffects")
+library(mgcv)
+library(broom)
 
 data <- read_excel("/Users/AGaffney/Documents/ciara-project/data/alexdatacopy.xlsx")
 dt <- as.data.table(data)
-
-
-
-
 # rename variables
 #####
 custom_rename <- c(
@@ -59,7 +57,7 @@ custom_rename <- c(
   "Bells stage (per episode suspected NEC)" = "bells_stage_per_ep_sus_nex",                                                                               
   "Days on mechanical ventilation" = "days_mech_ventilation",                                                                                                         
   "Days on NIV (CPAP/Bipap)" = "days_niv_cpap_bipap",                                                                                        
-  "Bronchopulmonnary Dysplasia/Chronic Lung disease (O2 requirement at 36 weeks or 28 days consecutively )" = "bronchopulmonnary_dysplasia_chronic_lung_disease",                                                 
+  "Bronchopulmonnary Dysplasia/Chronic Lung disease (O2 requirement at 36 weeks or 28 days consecutively )" = "bpd",                                                 
   "Evidence of IVH" = "evidence_ivh",                                                                                                                                            
   "Grade of IVH 1-4=GRADES 5=PVL" = "grade_ivh",                                                                                                               
   "Location of IVH" = "loc_ivh",                                                                                                                                         
@@ -84,43 +82,50 @@ custom_rename <- c(
   "Device closure?" = "device_closure",                                                                                                                                
   "Length of stay" = "length_stay",                                                                                                                                         
   "Death? 1=yes, 0=No" = "death",                                                                                                                                       
-  "Death from Respiratory Failure or Chronic Lung Disease? Yes=1 No=0" = "death_resp_failure_chronic_lung",                                                                                      
-  "Comments...61" = "comments",                                                                                                                                        
-  "Bayley scores 1=Y, 0=n" = "bayley_score",                                                                                                           
-  "If no, reason" = "reason_no_bayleys",                                                                                                                                      
-  "If no, referral to other services? 1=Y, 0=N" = "no_bayleys_ref",                                                                                                    
-  "Age at Bayley (months, chronilogical)" = "age_at_bayleys",                                                                                                          
-  "Cognitive" = "cognitive",                                                                                                                                  
-  "Motor" = "motor",                                                                                                                                                  
-  "Language" = "language",                                                                                                                                       
-  "Social-emotional" = "social_emotional",                                                                                                                                        
-  "...70" = "remove",                                                                                                                                             
-  "...71" = "remove2",                                                                                                                                          
-  "...72" = "remove3",                                                                                                                                              
-  "PVL 1=y, 0=n" = "pvl",                                                                                                                                           
-  "PVHD" = "pvhd",                                                                                                                                          
-  "MRI performed 1=yes, 0=no" = "mri",                                                                                                                          
-  "Evidence of white matter injury on MRI 1=yes, 0=no" = "evidence_white_matte_injury",                                                                                           
-  "Age at MRI" = "age_mri",                                                                                                                                    
-  "MRI comments" = "mri_comment",                                                                                                                                    
-  "OFC at birth CENTILE" = "ofc_birth_centile",                                                                                                                                   
-  "OFC at MRI if done" = "ofc_mri",                                                                                                                          
-  "OFC at discharge CENTILE" = "ofc_discharge_centile",                                                                                                                                 
-  "follow up timeline" = "follow_up_timeline",                                                                                                                                        
-  "OFC at follow up" = "ofc_follow_up",                                                                                                                               
-  "AIMS centile" = "aims_centile",                                                                                                                                          
-  "HINE score 3/12" = "hine_3_12",                                                                                                                                   
-  "HINE score 6/12" = "hine_6_12",                                                                                                                                     
-  "GMA writhing age 1=normal, 2=PR, 3=CS, 4=chaotic" = "gma_writhing",                                                                                                 
-  "GMA Fidgety age 1=normal, 2=absent, 3=exaggerated" = "gma_fidgety" ,                                                                                                    
-  "Diagnosis 1=yes, 0=no" = "diagnosis",                                                                                                                                
-  "CP 1=yes, 0=no" = "cp",                                                                                                                                 
-  "NDI (CP or GDD without Bayley score) 1=yes, 0=no" = "ndi",                                                                                                    
-  "ASD 1=yes" = "asd",                                                                                                                                        
-  "Comments...93" = "comment2",                                                                                                                                 
-  "DNA 1=yes, 0=no" = "dna",                                                                                                                                        
-  "Length of follow up (months)" = "length_fu",                                                                                                                 
-  "Referral to CDNT 1=yes, 0=no" = "ref_cdnt"
+  "Death from Respiratory Failure or Chronic Lung Disease? Yes=1 No=0" = "death_resp_failure_chronic_lung",    
+  "Comments" = "comments",
+  "...62" = "remove",
+  "...63" = "remove2",
+  "FIRS_exposed" = "FIRS_exposed",
+  "weekofgestation" = "weekofgestation",
+  "SevereIVH" = "SevereIVH",
+  "compdeathBPD" = "compdeathBPD"
+  #"Comments...61" = "comments",                                                                                                                                        
+  #"Bayley scores 1=Y, 0=n" = "bayley_score",                                                                                                           
+  #"If no, reason" = "reason_no_bayleys",                                                                                                                                      
+  #"If no, referral to other services? 1=Y, 0=N" = "no_bayleys_ref",                                                                                                    
+  #"Age at Bayley (months, chronilogical)" = "age_at_bayleys",                                                                                                          
+  #"Cognitive" = "cognitive",                                                                                                                                  
+  #"Motor" = "motor",                                                                                                                                                  
+  #"Language" = "language",                                                                                                                                       
+  #"Social-emotional" = "social_emotional",                                                                                                                                        
+  # "...70" = "remove",                                                                                                                                             
+  # "...71" = "remove2",                                                                                                                                          
+  # "...72" = "remove3",                                                                                                                                              
+  # "PVL 1=y, 0=n" = "pvl",                                                                                                                                           
+  # "PVHD" = "pvhd",                                                                                                                                          
+  # "MRI performed 1=yes, 0=no" = "mri",                                                                                                                          
+  # "Evidence of white matter injury on MRI 1=yes, 0=no" = "evidence_white_matte_injury",                                                                                           
+  # "Age at MRI" = "age_mri",                                                                                                                                    
+  # "MRI comments" = "mri_comment",                                                                                                                                    
+  # "OFC at birth CENTILE" = "ofc_birth_centile",                                                                                                                                   
+  # "OFC at MRI if done" = "ofc_mri",                                                                                                                          
+  # "OFC at discharge CENTILE" = "ofc_discharge_centile",                                                                                                                                 
+  # "follow up timeline" = "follow_up_timeline",                                                                                                                                        
+  # "OFC at follow up" = "ofc_follow_up",                                                                                                                               
+  # "AIMS centile" = "aims_centile",                                                                                                                                          
+  # "HINE score 3/12" = "hine_3_12",                                                                                                                                   
+  # "HINE score 6/12" = "hine_6_12",                                                                                                                                     
+  # "GMA writhing age 1=normal, 2=PR, 3=CS, 4=chaotic" = "gma_writhing",                                                                                                 
+  # "GMA Fidgety age 1=normal, 2=absent, 3=exaggerated" = "gma_fidgety" ,                                                                                                    
+  # "Diagnosis 1=yes, 0=no" = "diagnosis",                                                                                                                                
+  # "CP 1=yes, 0=no" = "cp",                                                                                                                                 
+  # "NDI (CP or GDD without Bayley score) 1=yes, 0=no" = "ndi",                                                                                                    
+  # "ASD 1=yes" = "asd",                                                                                                                                        
+  # "Comments...93" = "comment2",                                                                                                                                 
+  # "DNA 1=yes, 0=no" = "dna",                                                                                                                                        
+  # "Length of follow up (months)" = "length_fu",                                                                                                                 
+  # "Referral to CDNT 1=yes, 0=no" = "ref_cdnt"
 )
 setnames(dt, old = names(custom_rename), new = custom_rename)
 #####
@@ -129,7 +134,7 @@ dt <- dt[!is.na(study_num)]
 any(duplicated(dt$study_num))
 
 # remove empty cols
-dt[, c("remove", "remove2", "remove3") := NULL]
+dt[, c("remove", "remove2") := NULL]
 
 
 # Number of total participants
@@ -139,23 +144,10 @@ n
 # Change character variables to numeric
 dt[, firs_grade := as.numeric(firs_grade)]
 dt[, firs_stage := as.numeric(firs_stage)]
-dt[, motor := as.numeric(motor)]
-dt[, language := as.numeric(language)]
-dt[, cognitive := as.numeric(cognitive)]
-dt[, social_emotional := as.numeric(social_emotional)]
 dt[, apgars_1 := as.numeric(apgars_1)]
 dt[, apgars_5 := as.numeric(apgars_5)]
 dt[, apgars_10 := as.numeric(apgars_10)]
-dt[, length_fu := as.numeric(length_fu)]
-dt[, bayley_score := as.numeric(bayley_score)]
-dt[, asd := as.numeric(asd)]
-
-
-# birth weight wrong in three - update
-# Update values based on study_number
-dt[study_num == 190, birth_weight := 1230]
-dt[study_num == 191, birth_weight := 1350]
-dt[study_num == 188, birth_weight := 1440]
+dt[, weekofgestation := as.numeric(weekofgestation)]
 
 
 # Add FIRS exposure flag - those with FIRS grade OR stage >=1
@@ -187,76 +179,6 @@ dt$mat_age_cat <- cut(
 dt$mat_age_rescale5 <- dt$mat_age / 5
 
 
-# Create composite outcome variables
-dt[, compNDIdeath := fcase(
-  death == 1, "YES",
-  ndi == 1, "YES",
-  !is.na(motor) & motor < 85, "YES",
-  !is.na(language) & language < 85, "YES",
-  !is.na(cognitive) & cognitive < 85, "YES",
-  default = "NO"
-)]
-
-dt[, compNDIdeath_Motor := fcase(
-  death == 1, "YES",
-  ndi == 1, "YES",
-  !is.na(motor) & motor < 85, "YES",
-  default = "NO"
-)]
-
-dt[, compNDIdeath_Language := fcase(
-  death == 1, "YES",
-  ndi == 1, "YES",
-  !is.na(language) & language < 85, "YES",
-  default = "NO"
-)]
-
-# Create composite outcome variables
-dt[, compNDIdeath_Cognitive := fcase(
-  death == 1, "YES",
-  ndi == 1, "YES",
-  !is.na(cognitive) & cognitive < 85, "YES",
-  default = "NO"
-)]
-
-# Sev
-dt[, compsevNDIdeath := fcase(
-  death == 1, "YES",
-  cp == 1, "YES",
-  !is.na(motor) & motor < 70, "YES",
-  !is.na(language) & language < 70, "YES",
-  !is.na(cognitive) & cognitive < 70, "YES",
-  default = "NO"
-)]
-
-dt[, compsevNDIdeath_Motor := fcase(
-  death == 1, "YES",
-  cp == 1, "YES",
-  !is.na(motor) & motor < 70, "YES",
-  default = "NO"
-)]
-
-dt[, compsevNDIdeath_Language := fcase(
-  death == 1, "YES",
-  cp == 1, "YES",
-  !is.na(language) & language < 70, "YES",
-  default = "NO"
-)]
-
-dt[, compsevNDIdeath_Cognitive := fcase(
-  death == 1, "YES",
-  cp == 1, "YES",
-  !is.na(cognitive) & cognitive < 70, "YES",
-  default = "NO"
-)]
-
-
-# Clnical chorio: 1 if reason for preterm = 3 (Triple I (clinical chorio))
-dt[, clinical_chorio := fcase(
-  reason_for_preterm_birth == 3, "Yes",
-  default = 'No'
-)]
-
 # HP Dep Score groups
 
 dt$SESgroups <- cut(
@@ -279,21 +201,34 @@ dt <- dt %>%
 dt$birth_weight_100g <- dt$birth_weight / 100
 
 
+# comp death BPD - alex
+
+dt$death_status <- ifelse(dt$death == "Dead", 1, 0)
+dt$bpd_status <- ifelse(dt$bpd == "Yes", 1, 0)
+
+dt[, compdeathbpd := fcase(
+  death_status == 1, "YES",
+  bpd_status == 1, "YES",
+  default = "NO"
+)]
+
+try <- dt[, .(study_num, death, death_status, bpd, bpd_status, compdeathBPD, compdeathbpd)]
+
+dt$compdeathBPD == dt$compdeathbpd
+
+# firs exposed status - alex
+
+dt$firs_status <- ifelse(dt$firs_exposed == "FIRS", 1, 0)
+
 # check for missing data
 vis_miss(dt)
 
 # change variables to factors
-dt[, compNDIdeath := factor(compNDIdeath)]
-dt[, compNDIdeath_Motor := factor(compNDIdeath_Motor)]
-dt[, compNDIdeath_Cognitive := factor(compNDIdeath_Cognitive)]
-dt[, compNDIdeath_Language := factor(compNDIdeath_Language)]
-
-dt[, compsevNDIdeath := factor(compsevNDIdeath)]
-dt[, compsevNDIdeath_Motor := factor(compsevNDIdeath_Motor)]
-dt[, compsevNDIdeath_Cognitive := factor(compsevNDIdeath_Cognitive)]
-dt[, compsevNDIdeath_Language := factor(compsevNDIdeath_Language)]
-
 dt[, firs_exposed := factor(firs_exposed)]
+dt[, FIRS_exposed := factor(FIRS_exposed)]
+dt[, bpd := factor(bpd)]
+dt[, SevereIVH := factor(SevereIVH)]
+dt[, compdeathBPD := factor(compdeathBPD)]
 dt[, birth_weight_cat := factor(birth_weight_cat)]
 dt[, gender := factor(gender,
                       levels = c(0, 1),
@@ -307,39 +242,89 @@ dt[, conception := factor(
 dt[, rom := factor(rom, levels = c(0, 1), labels = c("No", "Yes"))]
 dt[, mat_age_cat := factor(mat_age_cat)]
 dt[, grade_ivh := factor(grade_ivh)]
-dt[, pvl := factor(pvl)]
 dt[, gender := factor(gender)]
 dt[, steroids := factor(steroids)]
 dt[, firs_grade := factor(firs_grade)]
 dt[, firs_stage := factor(firs_stage)]
-dt[, clinical_chorio := factor(clinical_chorio)]
 dt[, SESgroups := factor(SESgroups)]
-dt[, asd := factor(asd, levels = c(0,1), labels = c("No", "Yes"))]
-
-# Bayleys
-###################
-
-dt_no_bayleys <- dt[bayley_score == 0,]
-
-# dt <- dt %>%
-#   mutate(bayley_score_flag = ifelse(is.na(motor), "No", "Yes"))
-# 
-# View(table(dt$bayley_score_flag, dt$no_bayleys_ref))
 
 
-# Recategorize into broader, cleaner labels
-dt_no_bayleys[, no_bayleys_cat := fcase(
-  no_bayleys_ref %in% c("0"),"No",
-  no_bayleys_ref %in% c("1"),"Yes",
-  no_bayleys_ref %in% c("2"),"Yes",
-  grepl("dna", no_bayleys_ref, ignore.case = TRUE), "DNA",
-  grepl("lost", no_bayleys_ref, ignore.case = TRUE), "Lost to Follow-Up",
-  grepl("discharge", no_bayleys_ref, ignore.case = TRUE), "No",
-  grepl("referred", no_bayleys_ref, ignore.case = TRUE), "Yes",
-  is.na(no_bayleys_ref) | no_bayleys_ref %in% c("NA", "na", ""), "NA",
-  default = "Other"
-)]
+# MULTIVARIATE LOG REGRESSION
+# if two outcomes are correlated
+# Create a contingency table
+dt_outcomes <- table(dt$bpd, dt$compdeathBPD)
 
-#dim(dt_no_bayleys)
-#table(dt_no_bayleys$no_bayleys_cat)
+# quasi or perfect seperation 
+
+# compdeathBPD
+compdeathBPD_mod <-
+  glm(
+    compdeathBPD ~ firs_status + gest_age + birth_weight,
+    data = dt,
+    family = "binomial"
+  )
+
+# check for multicollinearity 
+vif(compdeathBPD_mod)
+
+# tidy results
+compdeathBPD_mod_tidymod <- tidy(compdeathBPD_mod
+                             ,
+                             exponentiate = TRUE,
+                             conf.int = TRUE)
+
+# Create tidy model with significance labels
+compdeathBPD_mod_tidymod_forest <- compdeathBPD_mod_tidymod %>%
+  filter(term != "(Intercept)") %>%
+  mutate(sig = ifelse(p.value < 0.05, "*", ""))
+
+# Forest plot
+ggplot(compdeathBPD_mod_tidymod_forest, aes(x = estimate, y = reorder(term, estimate))) +
+  geom_point() +
+  geom_errorbarh(aes(xmin = conf.low, xmax = conf.high), height = 0.2) +
+  geom_vline(xintercept = 1, linetype = "dashed", color = "red") +
+  geom_text(aes(label = paste0(round(estimate, 2), sig)), hjust = -0.2) +
+  scale_x_log10() +
+  labs(
+    x = "Odds Ratio (log scale)",
+    y = NULL,
+    title = "Forest Plot of Odds Ratios with 95% CI - compdeathBPD"
+  ) +
+  theme_minimal()
+
+
+#Re-fit model using penalized logistic regression:
+  
+library(logistf)
+logistf_model <- logistf(compdeathBPD ~ gest_age + birth_weight, data = dt)
+summary(logistf_model)
+
+#  bias-reduced logistic regression model
+library(brglm2)
+model <- glm(compdeathBPD ~ gest_age + birth_weight,
+             data = dt,
+             family = binomial(),
+             method = "brglmFit")
+summary(model)
+
+
+# bpd
+BPD_mod <-
+  glm(
+    bpd_status ~ firs_status + gest_age + birth_weight,
+    data = dt,
+    family = "binomial"
+  )
+
+# check for multicollinearity 
+vif(BPD_mod)
+
+# tidy results
+BPD_mod_tidymod <- tidy(BPD_mod
+                        , exponentiate = TRUE, conf.int = TRUE)
+
+# Create tidy model with significance labels
+BPD_mod_tidymod_forest <- BPD_mod_tidymod %>%
+  filter(term != "(Intercept)") %>%
+  mutate(sig = ifelse(p.value < 0.05, "*", ""))
 
