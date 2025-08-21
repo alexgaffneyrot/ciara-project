@@ -13,14 +13,21 @@ library(ggplot2)
 library(VGAM)
 library(MCMCpack)
 
-data <- read_excel("/Users/AGaffney/Documents/ciara-project/data/Copy of Complete CHorio with NDI ct.xlsx")
+#data <- read_excel("/Users/AGaffney/Documents/ciara-project/data/Copy of Complete CHorio with NDI ct.xlsx")
+#data <- read_excel("/Users/AGaffney/Documents/ciara-project/data/alexdatacopy.xlsx")
+data <- read_excel("/Users/AGaffney/Documents/ciara-project/data/Copy of Complete Chorio with NDIFInal CT.xlsx")
+data1 <- read_excel("/Users/AGaffney/Documents/ciara-project/data/NMHSESchorio NDI Final CTAnna.xlsx")
+
+dim(data)
+dim(data1)
+
+setdiff(names(data), names(data1))
+
+colnames(data)
+colnames(data1)
+
 dt <- as.data.table(data)
-
-data <- read_excel("/Users/AGaffney/Documents/ciara-project/data/alexdatacopy.xlsx")
-dt <- as.data.table(data)
-
-
-
+dt1 <- as.data.table(data1)
 
 # rename variables
 #####
@@ -85,6 +92,7 @@ custom_rename <- c(
   "Length of stay" = "length_stay",                                                                                                                                         
   "Death? 1=yes, 0=No" = "death",                                                                                                                                       
   "Death from Respiratory Failure or Chronic Lung Disease? Yes=1 No=0" = "death_resp_failure_chronic_lung",                                                                                      
+  # split here - 60
   "Comments...61" = "comments",                                                                                                                                        
   "Bayley scores 1=Y, 0=n" = "bayley_score",                                                                                                           
   "If no, reason" = "reason_no_bayleys",                                                                                                                                      
@@ -122,15 +130,99 @@ custom_rename <- c(
   "Length of follow up (months)" = "length_fu",                                                                                                                 
   "Referral to CDNT 1=yes, 0=no" = "ref_cdnt"
 )
-setnames(dt, old = names(custom_rename), new = custom_rename)
+
+custom_rename1 <- c(
+  "Study no" = "study_num",
+  "Gender 1=male 0=female" = "gender",
+  "Gestational age" = "gest_age",
+  "Birth weight" = "birth_weight",
+  "Maternal Age" = "mat_age",
+  "Conception? 1=Spontaneous, 2=IVF/ICSI 3=Donor Egg IVF 4=IUI" = "conception",
+  "HP Dep Score" = "hp_dep_score",
+  "Reason for preterm birth 1=PET, 2= PTL, 3=Triple I (clinical chorio), 4= IUGR, 5= Maternal reasons 6=APH 7=TTTS, 8=Cord Prolapse, 9=AEDF, 10=NRCTG, 11=Others" = "reason_for_preterm_birth",
+  "No. of babies 1=1, 2=2 3=3, 4=4" = "num_babies",
+  "MgSO4 1=Yes, 0= None" = "mgso4",
+  "Steroids 2=full, 1= 1 dose, 0=none" = "steroids",
+  "ROM 1=yes 0=no" = "rom",
+  "Duration of ROM" = "dur_rom",
+  "Apgars 1" = "apgars_1",                                                                                                                                                
+  "Apgars 5" = "apgars_5",                                                                                                                                        
+  "Apgars 10" = "apgars_10",
+  "CRIB II" = "crib_ii",
+  "Feeding? 1=EMBM, 2=DEBM, 3= Formula" = "feeding",
+  "Time to full feeds (120ml/kg/day)" = "time_to_full_feeds",
+  "Days of therapy antibiotic exposure (DOT)" = "dot",
+  "Microbiological chorio" = "micro_chorio",
+  "Histiological chorio?" = "histo_chorio",
+  "FIRS grade" = "firs_grade",                                                                                                                                                 
+  "FIRS stage" = "firs_stage",                                                                                                                                             
+  "Organism" = 'organism',
+  "Dx of sepsis during NICU" = "sepsis_during_nicu",
+  "Total episodes of clinically suspected sepsis?" = "num_episodes_sepsis",                                                                                                           
+  "Culture +ve?" = "culture_positve",                                                                                                                                   
+  "Organism on culture" = "organism_on_culture",                                                                                                                                  
+  "NEC dx during NICU stay" = "nec_dx_nicu",                                                                                                                           
+  "Total episodes of suspected NEC" = "total_ep_sus_nec",                                                                                                                      
+  "Bells stage (per episode suspected NEC)" = "bells_stage_per_ep_sus_nex",                                                                               
+  "Days on mechanical ventilation" = "days_mech_ventilation",                                                                                                         
+  "Days on NIV (CPAP/Bipap)" = "days_niv_cpap_bipap",                                                                                        
+  "Bronchopulmonnary Dysplasia/Chronic Lung disease (O2 requirement at 36 weeks or 28 days consecutively )" = "bronchopulmonnary_dysplasia_chronic_lung_disease",                                                 
+  "Evidence of IVH" = "evidence_ivh",                                                                                                                                            
+  "Grade of IVH 1-4=GRADES 5=PVL" = "grade_ivh",                                                                                                               
+  "Location of IVH" = "loc_ivh",                                                                                                                                         
+  "Highest WCC in first 72 hrs" = "highest_wcc_72hrs",                                                                                                          
+  "WCC on Day 1" = "wcc_d1",                                                                                                                          
+  "WCC on Day 3" = "wcc_d3",                                                                                                                                         
+  "Lowest platelets in first 72 hrs" = "lowest_platelets_72hrs",                                                                                                       
+  "Platelets Day 1" = "platelets_d1",                                                                                                                           
+  "Platelets Day 3" = "platelets_d3",                                                                                                                                           
+  "Highest neutrophil count first 72 hours" = "highest_neutrophil_72hrs",                                                                                                            
+  "Neuts D1" = "neuts_d1",                                                                                                                                     
+  "Neuts D3" = "neuts_d3",                                                                                                                                           
+  "Highest Lymphs in first 72hrs" = "highest_lymps_72hrs",                                                                                                                              
+  "Lymphs on Day 1" = "lymphs_d1",                                                                                                                                      
+  "Lymphs on Day3" = "lymphs_d3",                                                                                                                                         
+  "Pneumothoraces?" = "pneumothoraces",                                                                                                                                   
+  "RDS requiring surfactant" = "rds_requiring_surfactant",                                                                                                                           
+  "Doses of surfactant" = "doses_surfactant",                                                                                                                             
+  "PDA treatment?" = "pda_treatment",                                                                                                                         
+  "Which PDA treatment (1=medical only, 2=surgical only, 3=medical, then surgical, N/A=no treatment)" = "pda_treatment_type",                                                    
+  "Number of medical treatments PDA" = "num_med_treatments_pda",                                                                                                                      
+  "Device closure?" = "device_closure",                                                                                                                                
+  "Length of stay" = "length_stay",                                                                                                                                         
+  "Death? 1=yes, 0=No" = "death",                                                                                                                                       
+  "Death from Respiratory Failure or Chronic Lung Disease? Yes=1 No=0" = "death_resp_failure_chronic_lung",   
+  "Comments" = "remove",                                                                                                                                             
+  "...62" = "remove1",                                                                                                                                                        
+  "...63" = "remove2"
+)
 #####
+
+setnames(dt, old = names(custom_rename), new = custom_rename)
+removeCols = c("comments","remove","remove2","remove3","comment2") # remove empty cols
+dt[,(removeCols):= NULL] 
+
+setnames(dt1, old = names(custom_rename1), new = custom_rename1) # remove empty cols
+removeCols1 = c("remove","remove1","remove2")
+dt1[,(removeCols1):= NULL] 
+
+dt[, study_num:= as.character(study_num)]
+dt1[, study_num:= as.character(study_num)]
+
+dt[, mgso4:= as.character(mgso4)]
+dt1[, mgso4:= as.character(mgso4)]
+
+dt[, steroids:= as.numeric(steroids)]
+dt1[, steroids:= as.numeric(steroids)]
+
+dt[, total_ep_sus_nec:= as.character(total_ep_sus_nec)]
+dt1[, total_ep_sus_nec:= as.character(total_ep_sus_nec)]
+
+dt <- merge(dt, dt1, by = intersect(names(dt), names(dt1)), all = T)
+
 # remove any NA study #'s and check for duplicate rows
 dt <- dt[!is.na(study_num)]
 any(duplicated(dt$study_num))
-
-# remove empty cols
-dt[, c("remove", "remove2", "remove3") := NULL]
-
 
 # Number of total participants
 n <- dt[, uniqueN(study_num)]
@@ -150,7 +242,6 @@ dt[, length_fu := as.numeric(length_fu)]
 dt[, bayley_score := as.numeric(bayley_score)]
 dt[, asd := as.numeric(asd)]
 
-
 # birth weight wrong in three - update
 # Update values based on study_number
 dt[study_num == 190, birth_weight := 1230]
@@ -165,26 +256,26 @@ dt[, firs_exposed := fcase(
   default = "No FIRS"
 )]
 
-# Add birth weight category 
-dt$birth_weight_cat <- cut(
-  dt$birth_weight,
-  #breaks = c(-Inf, 1499, 2499, Inf),
-  #labels = c("VLBW", "LBW", "NBW"),
-  # get rid of NBW - there's only one and messing up regression
-  breaks = c(-Inf, 1499, Inf),
-  labels = c("VLBW", "LBW"),
-  right = TRUE
-)
+# # Add birth weight category 
+# dt$birth_weight_cat <- cut(
+#   dt$birth_weight,
+#   #breaks = c(-Inf, 1499, 2499, Inf),
+#   #labels = c("VLBW", "LBW", "NBW"),
+#   # get rid of NBW - there's only one and messing up regression
+#   breaks = c(-Inf, 1499, Inf),
+#   labels = c("VLBW", "LBW"),
+#   right = TRUE
+# )
 
-dt$mat_age_cat <- cut(
-  dt$mat_age,
-  breaks = c(min(dt$mat_age), 34, max(dt$mat_age)),
-  labels = c("NMA","AMA"),
-  right = TRUE
-)
+# dt$mat_age_cat <- cut(
+#   dt$mat_age,
+#   breaks = c(min(dt$mat_age), 34, max(dt$mat_age)),
+#   labels = c("NMA","AMA"),
+#   right = TRUE
+# )
 
-# Rescale maternal age: effect per 5-year increase
-dt$mat_age_rescale5 <- dt$mat_age / 5
+# # Rescale maternal age: effect per 5-year increase
+# dt$mat_age_rescale5 <- dt$mat_age / 5
 
 
 # Create composite outcome variables
@@ -278,7 +369,6 @@ dt <- dt %>%
 #rescale birth weight, e.g., per 100 grams:
 dt$birth_weight_100g <- dt$birth_weight / 100
 
-
 # check for missing data
 vis_miss(dt)
 
@@ -287,14 +377,12 @@ dt[, compNDIdeath := factor(compNDIdeath)]
 dt[, compNDIdeath_Motor := factor(compNDIdeath_Motor)]
 dt[, compNDIdeath_Cognitive := factor(compNDIdeath_Cognitive)]
 dt[, compNDIdeath_Language := factor(compNDIdeath_Language)]
-
 dt[, compsevNDIdeath := factor(compsevNDIdeath)]
 dt[, compsevNDIdeath_Motor := factor(compsevNDIdeath_Motor)]
 dt[, compsevNDIdeath_Cognitive := factor(compsevNDIdeath_Cognitive)]
 dt[, compsevNDIdeath_Language := factor(compsevNDIdeath_Language)]
-
 dt[, firs_exposed := factor(firs_exposed)]
-dt[, birth_weight_cat := factor(birth_weight_cat)]
+#dt[, birth_weight_cat := factor(birth_weight_cat)]
 dt[, gender := factor(gender,
                       levels = c(0, 1),
                       labels = c("Male", "Female"))]
@@ -303,9 +391,8 @@ dt[, conception := factor(
   levels = c(1, 2, 3, 4),
   labels = c("Spontaneous", "IVF/ICSI", "Donor Egg IVF", "IUI")
 )]
-
 dt[, rom := factor(rom, levels = c(0, 1), labels = c("No", "Yes"))]
-dt[, mat_age_cat := factor(mat_age_cat)]
+#dt[, mat_age_cat := factor(mat_age_cat)]
 dt[, grade_ivh := factor(grade_ivh)]
 dt[, pvl := factor(pvl)]
 dt[, gender := factor(gender)]
@@ -317,8 +404,6 @@ dt[, SESgroups := factor(SESgroups)]
 dt[, asd := factor(asd, levels = c(0,1), labels = c("No", "Yes"))]
 
 # Bayleys
-###################
-
 dt_no_bayleys <- dt[bayley_score == 0,]
 
 # dt <- dt %>%

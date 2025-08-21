@@ -207,7 +207,7 @@ dt <- dt %>%
 class(dt$firs_exposed)
 # Create your summary table
 summary_tbl <- dt %>%
-  select(
+  dplyr::select(
     firs_exposed, mat_age, clinical_chorio, rom, steroids,
     gest_age, birth_weight, gender, apgars_1, apgars_5, apgars_10
   ) %>%
@@ -228,7 +228,7 @@ summary_tbl <- dt %>%
       rom ~ "ROM",
       steroids ~ "Antenatal steroids",
       gest_age ~ "Gestation",
-      birth_weight ~ "Birth Weight",
+      birth_weight ~ "Birth Weight (g)",
       gender ~ "Sex",
       apgars_1 ~ "1 min",
       apgars_5 ~ "5 min",
